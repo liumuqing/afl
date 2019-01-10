@@ -477,7 +477,6 @@ static void bind_to_free_cpu(void) {
   closedir(d);
 
   for (i = 0; i < cpu_core_count; i++) if (!cpu_used[i]) break;
-
   if (i == cpu_core_count) {
 
     SAYF("\n" cLRD "[-] " cRST
@@ -2281,8 +2280,16 @@ static u8 run_target(char** argv, u32 timeout) {
      init_forkserver(), but c'est la vie. */
 
   if (dumb_mode == 1 || no_forkserver) {
+      setenv("ASAN_OPTIONS", "abort_on_error=1:"
+                             "detect_leaks=0:"
+                             "symbolize=0:"
+                             "allocator_may_return_null=1", 0);
 
-    child_pid = fork();
+      setenv("MSAN_OPTIONS", "exit_code=" STRINGIFY(MSAN_ERROR) ":"
+                             "symbolize=0:"
+                             "msan_track_origins=0", 0);
+
+    child_pid = vfork();
 
     if (child_pid < 0) PFATAL("fork() failed");
 
@@ -2338,14 +2345,6 @@ static u8 run_target(char** argv, u32 timeout) {
 
       /* Set sane defaults for ASAN if nothing else specified. */
 
-      setenv("ASAN_OPTIONS", "abort_on_error=1:"
-                             "detect_leaks=0:"
-                             "symbolize=0:"
-                             "allocator_may_return_null=1", 0);
-
-      setenv("MSAN_OPTIONS", "exit_code=" STRINGIFY(MSAN_ERROR) ":"
-                             "symbolize=0:"
-                             "msan_track_origins=0", 0);
 
       execv(target_path, argv);
 
@@ -2353,7 +2352,7 @@ static u8 run_target(char** argv, u32 timeout) {
          falling through. */
 
       *(u32*)trace_bits = EXEC_FAIL_SIG;
-      exit(0);
+      _exit(0);
 
     }
 
