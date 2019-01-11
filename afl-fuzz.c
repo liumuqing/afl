@@ -477,6 +477,7 @@ static void bind_to_free_cpu(void) {
   closedir(d);
 
   for (i = 0; i < cpu_core_count; i++) if (!cpu_used[i]) break;
+
   if (i == cpu_core_count) {
 
     SAYF("\n" cLRD "[-] " cRST
@@ -2254,8 +2255,9 @@ EXP_ST void init_forkserver(char** argv) {
 }
 
 
-/* Execute target application, monitoring for timeouts. Return status
-   information. The called program will update trace_bits[]. */
+int dumb_mode_target_file_fd = -1;
+#include <sys/mman.h>
+#include <sys/sendfile.h>
 
 static u8 run_target(char** argv, u32 timeout) {
 
@@ -2280,6 +2282,13 @@ static u8 run_target(char** argv, u32 timeout) {
      init_forkserver(), but c'est la vie. */
 
   if (dumb_mode == 1 || no_forkserver) {
+      if (dumb_mode_target_file_fd == -1) {
+          int fd = open(target_path, 0);
+          dumb_mode_target_file_fd = memfd_create("payload", 0);
+          sendfile(dumb_mode_target_file_fd, fd, NULL, 0x7fffffff);
+          close(fd);
+
+      }
       setenv("ASAN_OPTIONS", "abort_on_error=1:"
                              "detect_leaks=0:"
                              "symbolize=0:"
@@ -2346,7 +2355,8 @@ static u8 run_target(char** argv, u32 timeout) {
       /* Set sane defaults for ASAN if nothing else specified. */
 
 
-      execv(target_path, argv);
+      //execv(target_path, argv);
+      fexecve(dumb_mode_target_file_fd, argv, environ);
 
       /* Use a distinctive bitmap value to tell the parent about execv()
          falling through. */
@@ -7202,16 +7212,17 @@ EXP_ST void setup_dirs_fds(void) {
 /* Setup the output file for fuzzed data, if not using -f. */
 
 EXP_ST void setup_stdio_file(void) {
+  //u8* fn = alloc_printf("%s/.cur_input", out_dir);
+  //unlink(fn); /* Ignore errors */
+  //out_fd = open(fn, O_RDWR | O_CREAT | O_EXCL, 0600);
+  
+  out_fd = memfd_create(".cur_input", 0);
 
-  u8* fn = alloc_printf("%s/.cur_input", out_dir);
 
-  unlink(fn); /* Ignore errors */
+  //if (out_fd < 0) PFATAL("Unable to create '%s'", fn);
+  if (out_fd < 0) PFATAL("Unable to create mem_fd");
 
-  out_fd = open(fn, O_RDWR | O_CREAT | O_EXCL, 0600);
-
-  if (out_fd < 0) PFATAL("Unable to create '%s'", fn);
-
-  ck_free(fn);
+  //ck_free(fn);
 
 }
 
