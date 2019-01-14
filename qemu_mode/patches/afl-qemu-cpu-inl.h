@@ -128,9 +128,8 @@ static void afl_setup(void) {
 
   if (id_str) {
 
-    shm_id = atoi(id_str);
-    afl_area_ptr = shmat(shm_id, NULL, 0);
-
+    afl_area_ptr = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, SHM_FD, 0);
+  
     if (afl_area_ptr == (void*)-1) exit(1);
 
     /* With AFL_INST_RATIO set to a low value, we want to touch the bitmap
@@ -138,6 +137,7 @@ static void afl_setup(void) {
 
     if (inst_r) afl_area_ptr[0] = 1;
 
+    close(SHM_FD);
 
   }
 

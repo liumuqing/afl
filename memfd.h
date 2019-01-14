@@ -31,6 +31,14 @@ static inline int memfd_create(const char *name, unsigned int flags) {
 #define F_SEAL_GROW     0x0004  /* prevent file from growing */
 #define F_SEAL_WRITE    0x0008  /* prevent writes */
 #endif
+#else /* glibc version */
+  #ifndef _GNU_SOURCE
+  #define _GNU_SOURCE
+  #include <sys/mman.h>
+  #else
+  #include <sys/mman.h>
+  #endif
 #endif /* glibc version */
+
 
 #endif /* _MEMFD_H */

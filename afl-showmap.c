@@ -22,6 +22,7 @@
  */
 
 #define AFL_MAIN
+#define _GNU_SOURCE
 
 #include "config.h"
 #include "types.h"
@@ -41,7 +42,8 @@
 
 #include <sys/wait.h>
 #include <sys/time.h>
-#include <sys/shm.h>
+#include <sys/mman.h>
+#include "memfd.h"
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/resource.h>
@@ -126,38 +128,32 @@ static void classify_counts(u8* mem, const u8* map) {
 }
 
 
-/* Get rid of shared memory (atexit handler). */
-
-static void remove_shm(void) {
-
-  shmctl(shm_id, IPC_RMID, NULL);
-
-}
-
-
 /* Configure shared memory. */
 
 static void setup_shm(void) {
 
   u8* shm_str;
 
-  shm_id = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600);
+  shm_id = memfd_create("shm", 0);
 
   if (shm_id < 0) PFATAL("shmget() failed");
+  if (0 != ftruncate(shm_id, MAP_SIZE)) PFATAL("ftrucate error");
 
-  atexit(remove_shm);
-
-  shm_str = alloc_printf("%d", shm_id);
+  shm_str = alloc_printf("%d", SHM_FD);
+  dup2(shm_id, SHM_FD);
 
   setenv(SHM_ENV_VAR, shm_str, 1);
 
   ck_free(shm_str);
 
-  trace_bits = shmat(shm_id, NULL, 0);
+  trace_bits = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_id, 0);
   
-  if (!trace_bits) PFATAL("shmat() failed");
+  if (!trace_bits) PFATAL("mmap(shm_id) failed");
+
+  close(shm_id);
 
 }
+
 
 /* Write results. */
 

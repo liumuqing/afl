@@ -1196,15 +1196,6 @@ static inline void classify_counts(u32* mem) {
 #endif /* ^__x86_64__ */
 
 
-/* Get rid of shared memory (atexit handler). */
-
-static void remove_shm(void) {
-
-  shmctl(shm_id, IPC_RMID, NULL);
-
-}
-
-
 /* Compact trace bytes into a smaller bitmap. We effectively just drop the
    count information here. This is called only sporadically, for some
    new paths. */
@@ -1351,7 +1342,7 @@ EXP_ST void setup_shm(void) {
   shm_id = memfd_create("shm", 0);
 
   if (shm_id < 0) PFATAL("shmget() failed");
-  ftruncate(shm_id, MAP_SIZE);
+  if (0 != ftruncate(shm_id, MAP_SIZE)) PFATAL("ftrucate error");
 
 
   if (!dumb_mode) dup2(shm_id, SHM_FD);
@@ -1368,7 +1359,7 @@ EXP_ST void setup_shm(void) {
 
   trace_bits = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_id, 0);
   
-  if (!trace_bits) PFATAL("shmat() failed");
+  if (!trace_bits) PFATAL("mmap(shm_id) failed");
 
   close(shm_id);
 

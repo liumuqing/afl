@@ -72,10 +72,7 @@ static void __afl_map_shm(void) {
 
   if (id_str) {
 
-    s32 shm_id = atoi(id_str);
-
-    //__afl_area_ptr = shmat(shm_id, NULL, 0);
-    __afl_area_ptr = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_id, 0);
+    __afl_area_ptr = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, SHM_FD, 0);
 
     /* Whooooops. */
 
