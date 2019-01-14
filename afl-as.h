@@ -36,6 +36,8 @@
 
 #include "config.h"
 #include "types.h"
+#define xstr(s) str(s)
+#define str(s) #s
 
 /* 
    ------------------
@@ -224,11 +226,14 @@ static const u8* main_payload_32 =
   "  call  atoi\n"
   "  addl  $4, %esp\n"
   "\n"
-  "  pushl $0          /* shmat flags    */\n"
-  "  pushl $0          /* requested addr */\n"
-  "  pushl %eax        /* SHM ID         */\n"
-  "  call  shmat\n"
-  "  addl  $12, %esp\n"
+  "  pushl $0          /* mmap offset    */\n"
+  "  pushl $" xstr(SHM_FD) "        /* mmap fd         */\n"
+  "  pushl $1        /* MAP_SHARED        */\n"
+  "  pushl $3        /* PROT_READ|PROT_WRITE */\n"
+  "  pushl $" xstr(MAP_SIZE) " /* size */\n"
+  "  pushl $0          /* mmap addr    */\n"
+  "  call  mmap\n"
+  "  addl  $24, %esp\n"
   "\n"
   "  cmpl $-1, %eax\n"
   "  je   __afl_setup_abort\n"
@@ -504,10 +509,16 @@ static const u8* main_payload_64 =
   "  movq  %rax, %rdi\n"
   CALL_L64("atoi")
   "\n"
-  "  xorq %rdx, %rdx   /* shmat flags    */\n"
-  "  xorq %rsi, %rsi   /* requested addr */\n"
-  "  movq %rax, %rdi   /* SHM ID         */\n"
-  CALL_L64("shmat")
+  //"  xorq %rdx, %rdx   /* shmat flags    */\n"
+  //"  xorq %rsi, %rsi   /* requested addr */\n"
+  //"  movq %rax, %rdi   /* SHM ID         */\n"
+  "  movq $0, %r9          /* mmap offset    */\n"
+  "  movq $" xstr(SHM_FD) ", %r8        /* mmap fd         */\n"
+  "  movq $1, %rcx        /* MAP_SHARED        */\n"
+  "  movq $3, %rdx        /* PROT_READ|PROT_WRITE */\n"
+  "  movq $" xstr(MAP_SIZE) ", %rsi /* size */\n"
+  "  movq $0, %rdi          /* mmap addr    */\n"
+  CALL_L64("mmap")
   "\n"
   "  cmpq $-1, %rax\n"
   "  je   __afl_setup_abort\n"

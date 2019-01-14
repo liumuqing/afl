@@ -1348,13 +1348,14 @@ EXP_ST void setup_shm(void) {
   memset(virgin_tmout, 255, MAP_SIZE);
   memset(virgin_crash, 255, MAP_SIZE);
 
-  shm_id = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600);
+  shm_id = memfd_create("shm", 0);
 
   if (shm_id < 0) PFATAL("shmget() failed");
+  ftruncate(shm_id, MAP_SIZE);
 
-  atexit(remove_shm);
 
-  shm_str = alloc_printf("%d", shm_id);
+  if (!dumb_mode) dup2(shm_id, SHM_FD);
+  shm_str = alloc_printf("%d", SHM_FD);
 
   /* If somebody is asking us to fuzz instrumented binaries in dumb mode,
      we don't want them to detect instrumentation, since we won't be sending
@@ -1365,9 +1366,11 @@ EXP_ST void setup_shm(void) {
 
   ck_free(shm_str);
 
-  trace_bits = shmat(shm_id, NULL, 0);
+  trace_bits = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_id, 0);
   
   if (!trace_bits) PFATAL("shmat() failed");
+
+  close(shm_id);
 
 }
 
@@ -2256,7 +2259,7 @@ EXP_ST void init_forkserver(char** argv) {
 
 
 int dumb_mode_target_file_fd = -1;
-#include <sys/mman.h>
+#include "memfd.h"
 #include <sys/sendfile.h>
 
 static u8 run_target(char** argv, u32 timeout) {
