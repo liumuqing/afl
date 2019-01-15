@@ -1,8 +1,9 @@
 #ifndef _MEMFD_H
 #define _MEMFD_H
 //#include <features.h>
-#if defined(__GLIBC__) && (__GLIBC__ == 2) && (__GLIBC_MINOR__ < 17) /* only needed for glibc < 2.17 */
+#if defined(__GLIBC__) && (__GLIBC__ == 2) && (__GLIBC_MINOR__ < 27) /* only needed for glibc < 2.27 */
 #include <sys/syscall.h>
+#include <unistd.h>
 
 /*
  * SPDX-License-Identifier: Unlicense
