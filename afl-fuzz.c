@@ -4624,6 +4624,17 @@ EXP_ST u8 common_fuzz_stuff(char** argv, u8* out_buf, u32 len) {
 
   }
 
+  if ((!dumb_mode) && (!no_forkserver) && (!out_file)) {
+      //1. if fork_server mode, we have a chance here to see the current offset of fd...
+      //2. if we are fuzzing from stdin, which means the fuzzed process will to seek back stdin..
+      //THEN: we are good here to check how many bytes are read by the fuzzed program, and then we can shrip it...
+      size_t res = lseek(out_fd, 0, SEEK_CUR);
+      if (!(res == (off_t) -1)) {
+          //assert(res <= len);
+          len = res;
+      }
+  }
+
   /* This handles FAULT_ERROR for us: */
 
   queued_discovered += save_if_interesting(argv, out_buf, len, fault);
